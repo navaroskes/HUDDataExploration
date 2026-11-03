@@ -150,3 +150,4 @@ tractruralitywithaddedvariables %>%
   filter(is.na(vacancy_rate_2020_2024)) %>%
   count(state_name, sort = TRUE)                # where those tracts are
 summary(tractruralitywithaddedvariables$vacancy_rate_2020_2024)
+
