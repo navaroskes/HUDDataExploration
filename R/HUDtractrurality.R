@@ -5,8 +5,8 @@
 # Output: Data/tract_hud_vacancy.parquet  (one row per 2020 census tract per quarter)
 # Quarters: 2023-Q1 onward, the first quarters HUD reports on 2020 census tracts (matches RUCA 2020).
 #   Earlier HUD quarters use 2000 tracts (to 2011-Q4) or 2010 tracts (2012-Q1 to 2022-Q4) and would need a crosswalk.
-# Run build_tract_rurality.R first (this script reads Data/tract_rurality.csv).
-# Open HUD.Rproj before running, so here() points to the HUD folder.
+# Run build_tract_rurality.R and addtotractrurality.R first
+#   (this script reads Data/tractruralitywithaddedvariables.csv: USDA columns plus QCT, ACS, land area, and LODES 2022 jobs).# Open HUD.Rproj before running, so here() points to the HUD folder.
 
 # install.packages(c("tidyverse", "here", "arrow"))   # run once if needed
 library(tidyverse)
@@ -18,11 +18,12 @@ hud_dir    <- here("Data", "Vacancy")
 out_file   <- here("Data", "tract_hud_vacancy.parquet")
 
 # ---- 1. USDA columns (same as tract_rurality.csv) ----
-tract_rurality <- read_csv(here("Data", "tract_rurality.csv"),
-                           col_types = cols(.default = col_character())) %>%
-  mutate(rucc_2023      = as.integer(rucc_2023),
-         ruca_primary   = as.numeric(ruca_primary),
-         ruca_secondary = as.numeric(ruca_secondary))
+tract_rurality <- read_csv(here("Data", "tractruralitywithaddedvariables.csv"),
+                           col_types = cols(tract_geoid      = col_character(),   # keep leading zeros
+                                            tract_geoid_2020 = col_character(),
+                                            county_geoid     = col_character(),
+                                            state_fips       = col_character(),
+                                            .default         = col_guess()))      # numbers read as numbers
 
 # HUD uses old Connecticut tract IDs in early 2023 and new ones later, so match on either ID column
 id_lookup <- bind_rows(
