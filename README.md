@@ -10,7 +10,8 @@ Run in this order:
 |---|---|
 | `R/build_tract_rurality.R` | Builds a national table with one row per 2020 census tract and three USDA rural/urban measures |
 | `R/addtotractrurality.R` | Adds new variables to that table, creating `tractruralitywithaddedvariables`, without changing the original. Also updates the Added variables table below |
-| `R/HUDtractrurality.R` | **Builds the main dataset:** joins HUD USPS vacancy data to `tractruralitywithaddedvariables`, one row per census tract per quarter (2023-Q1 to 2025-Q4), and adds vacancy rates |
+| `R/HUDtractrurality.R` | **Builds the main dataset:** joins HUD USPS vacancy data to `tractruralitywithaddedvariables`, one row per census tract per quarter (2023-Q1 to 2025-Q4), and adds vacancy rates and the 2020 Census urban area name |
+| `R/vermont_downtowns.R` | Vermont pilot: Vermont rows of the main dataset, plus a `downtown` flag (the core tract in each urban area with the best average rank on HUD business-address density and LODES downtown-job density), and a map |
 | `R/firsttimeACSpractice.R` | First practice pulling Census data: housing vacancy in Chittenden County, VT |
 | `R/mapbymetrostatus.R` | Map of U.S. counties by metro and nonmetro status |
 
@@ -37,6 +38,7 @@ Tract-level columns (IDs, rurality, and added variables) don't change by quarter
 | `rucc_2023`, `rucc_description` | County | Rural-Urban Continuum Code, 2023 (1 = largest metro, 9 = most rural) |
 | `ruca_primary`, `ruca_primary_desc` | Tract | Rural-Urban Commuting Area code, 2020 (1 to 10; 99 = little to no people) |
 | `ruca_secondary`, `ruca_secondary_desc` | Tract | Secondary RUCA code with more detail on commuting |
+| `urban_area_name` | Tract | 2020 Census urban area the tract is in (blank if none), from the USDA RUCA file |
 
 ### Added variables (`R/addtotractrurality.R`)
 
@@ -89,9 +91,17 @@ Each row is one quarter's snapshot for one tract. Most columns come in three ver
 | `*_new_addresses`, `*_drop_sites` | Addresses added this quarter; USPS drop sites |
 | `hud_geoid` | Tract ID as HUD reported it (differs from `tract_geoid` only for some Connecticut tracts in 2023-Q1) |
 
+### Vermont pilot (`R/vermont_downtowns.R`)
+
+Same columns as the main dataset, Vermont tracts only, plus:
+
+| Column | Description |
+|---|---|
+| `downtown` | "Yes" for each urban area's downtown tract: the core tract (RUCA 1, 4, or 7, at least 25 business addresses) with the best average rank on business addresses per sq mi (HUD, 2023-Q1) and downtown-type jobs per sq mi (LODES 2022). "No" for all other tracts |
+
 ## Data sources
 
-- **USDA Economic Research Service:** Rural-Urban Commuting Area codes (2020) and Rural-Urban Continuum Codes (2023)
+- **USDA Economic Research Service:** Rural-Urban Commuting Area codes (2020, including 2020 Census urban areas) and Rural-Urban Continuum Codes (2023)
 - **U.S. Census Bureau:** American Community Survey 2020-2024 5-year estimates; TIGER/Line cartographic boundaries (2023); LEHD Origin-Destination Employment Statistics (LODES 8, 2022)
 - **HUD:** 2026 Qualified Census Tracts; Aggregated USPS Administrative Data on Address Vacancies (quarterly, census tract level)
 
@@ -105,3 +115,4 @@ Data files aren't included in this repository. The scripts download or rebuild t
 - HUD USPS vacancy uses 2020 census tracts starting in 2023-Q1, which is why the main dataset starts there. Earlier quarters use 2000 or 2010 tracts and would need a crosswalk.
 - LODES only lists tracts with at least one job, so tracts with no jobs (and Puerto Rico, which isn't in LODES) have blank job columns.
 - `downtown_jobs_2022` (retail, arts/entertainment, and accommodation/food jobs) is this project's own proxy for downtown activity, not a LODES variable.
+- The downtown method picks one tract per urban area, so urban areas with more than one downtown (e.g. Barre--Montpelier) get only one, and urban areas with no core tract (e.g. Milton, VT, which is all RUCA 2) get none. Tracts are larger than actual downtowns.

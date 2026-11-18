@@ -1,12 +1,14 @@
-# build_tract_hud.R
+# HUDtractrurality.R
 # Builds a national census-tract x quarter panel with:
-#   1. The same USDA rural/urban columns as tract_rurality.csv (metro/nonmetro, RUCC 2023, RUCA 2020)
+#   1. The same USDA rural/urban columns as tract_rurality.csv (metro/nonmetro, RUCC 2023, RUCA 2020),
+#      plus the 2020 Census urban area name
 #   2. HUD Aggregated USPS Administrative Data on Address Vacancies (all columns), plus vacancy rates
 # Output: Data/tract_hud_vacancy.parquet  (one row per 2020 census tract per quarter)
 # Quarters: 2023-Q1 onward, the first quarters HUD reports on 2020 census tracts (matches RUCA 2020).
 #   Earlier HUD quarters use 2000 tracts (to 2011-Q4) or 2010 tracts (2012-Q1 to 2022-Q4) and would need a crosswalk.
 # Run build_tract_rurality.R and addtotractrurality.R first
-#   (this script reads Data/tractruralitywithaddedvariables.csv: USDA columns plus QCT, ACS, land area, and LODES 2022 jobs).# Open HUD.Rproj before running, so here() points to the HUD folder.
+#   (this script reads Data/tractruralitywithaddedvariables.csv: USDA columns plus QCT, ACS, land area, and LODES 2022 jobs).
+# Open HUD.Rproj before running, so here() points to the HUD folder.
 
 # install.packages(c("tidyverse", "here", "arrow"))   # run once if needed
 library(tidyverse)
@@ -24,6 +26,20 @@ tract_rurality <- read_csv(here("Data", "tractruralitywithaddedvariables.csv"),
                                             county_geoid     = col_character(),
                                             state_fips       = col_character(),
                                             .default         = col_guess()))      # numbers read as numbers
+
+# Urban area (2020 Census) for each tract, from the USDA RUCA file; blank for tracts outside any urban area
+urban_areas <- read_csv(here("Data", "raw", "ruca_2020_tracts.csv"),
+                        col_types = cols(.default = col_character()),
+                        na = c("", "NA", "N/A"),
+                        locale = locale(encoding = "latin1")) %>%
+  transmute(tract_geoid     = TractFIPS23,
+            urban_area_name = UrbanAreaName20) %>%
+  filter(!is.na(tract_geoid))                          # drops 4 Connecticut water-only tracts with no 2023 ID                          # drops 4 Connecticut water-only tracts with no 2023 ID
+stopifnot(!any(duplicated(urban_areas$tract_geoid)))   # one row per tract
+
+tract_rurality <- tract_rurality %>%
+  left_join(urban_areas, by = "tract_geoid") %>%
+  relocate(urban_area_name, .after = ruca_secondary_desc)
 
 # HUD uses old Connecticut tract IDs in early 2023 and new ones later, so match on either ID column
 id_lookup <- bind_rows(
@@ -95,5 +111,5 @@ tract_hud %>%                                        # business vacancy by metro
             bus_vacancy_rate_median = median(bus_vacancy_rate, na.rm = TRUE),
             res_vacancy_rate_median = median(res_vacancy_rate, na.rm = TRUE))
 
-# ---- 7. Save (uncomment and run once you're happy with it) ----
-# write_parquet(tract_hud, out_file)
+# ---- 7. Save ----
+write_parquet(tract_hud, out_file)
